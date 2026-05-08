@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './App.css';
-import { supabase } from './supabase';
 import Dashboard from './Dashboard';
 import Leads from './Leads';
 import Policies from './Policies';
