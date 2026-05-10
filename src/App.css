@@ -17,7 +17,10 @@ body {
 
 /* Sidebar Styling */
 .sidebar {
-  width: 240px;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  flex-shrink: 0;
   background-color: #2c3e50;
   color: white;
   display: flex;
@@ -113,6 +116,35 @@ body {
 .status-converted { background: #e8f5e9; color: #2e7d32; }
 .status-pending { background: #fff3e0; color: #ef6c00; }
 
+/* Sticky Header */
+.sticky-header {
+  position: sticky;
+  top: -40px; /* Offset .content padding */
+  margin-top: -40px;
+  padding-top: 40px;
+  padding-bottom: 10px;
+  top: -40px;
+  margin: -40px -40px 20px -40px; /* Pull to edges of .content */
+  padding: 40px 40px 10px 40px;   /* Restore internal spacing */
+  background-color: #f4f7f6 !important; /* Ensure solid background during scroll */
+  z-index: 100;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02); /* Subtle depth on scroll */
+}
+
+@media (max-width: 768px) {
+  .sticky-header {
+    top: -20px;
+    margin-top: -20px;
+    padding-top: 20px;
+    top: -20px; 
+    margin: -20px -20px 20px -20px;
+    padding: 20px 20px 10px 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+}
+
 /* Closed Policy Row Styling */
 .row-closed {
   color: #888 !important;
@@ -160,6 +192,122 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+}
+
+/* View Toggle Styling */
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.view-toggle {
+  display: flex;
+  background: #eee;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.btn-toggle {
+  border: none;
+  background: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.btn-toggle.active {
+  background: white;
+  color: #3498db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Kanban Board Styling */
+.kanban-board {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  padding-bottom: 20px;
+  align-items: flex-start;
+}
+
+.kanban-column {
+  flex: 1;
+  min-width: 0;
+  background: #f1f3f5;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 250px);
+  border: 1px solid transparent;
+  transition: background-color 0.2s;
+}
+
+.kanban-column h3 {
+  margin: 0 0 15px 0;
+  font-size: 1rem;
+  color: #495057;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kanban-count {
+  background: #dee2e6;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  color: #6c757d;
+}
+
+.kanban-cards {
+  flex-grow: 1;
+  overflow-y: auto;
+  min-height: 150px;
+}
+
+.kanban-card {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  cursor: grab;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid #dee2e6;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+  transform: scale(1.02);
+}
+
+.kanban-card-title {
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  color: #2c3e50;
+}
+
+.kanban-card-info {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+}
+
+.kanban-card-reminder {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #e67e22;
+  font-weight: 600;
 }
 
 /* Dashboard Enhancements */
@@ -386,20 +534,20 @@ body {
 
 /* Reminder Highlight for within 30 days */
 .reminder-highlight {
-  background-color: rgba(255, 0,0,0.3); /* Light blue background for better visibility */
+  background-color: rgba(255, 50, 50, 0.3) !important; /* Light red background */
 }
 
 .reminder-highlight td {
-  /* border-top: 1px solid #3498db !important;
-  border-bottom: 1px solid #3498db !important; */
+  /* border-top: 1px solid #e74c3c !important;
+  border-bottom: 1px solid #e74c3c !important; */
 }
 
 .reminder-highlight td:first-child {
-  /* border-left: 1px solid #3498db !important; */
+  /* border-left: 1px solid #e74c3c !important; */
 }
 
 .reminder-highlight td:last-child {
-  /* border-right: 1px solid #3498db !important; */
+  /* border-right: 1px solid #e74c3c !important; */
 }
 
 /* Bottom Navigation for Mobile */
@@ -464,6 +612,11 @@ body {
     padding-bottom: 70px; /* Make space for fixed bottom nav */
   }
 
+  /* Hide view toggle on mobile as Kanban is desktop-only */
+  .view-toggle {
+    display: none;
+  }
+
   .bottom-nav {
     display: flex; /* Show bottom nav on mobile */
     position: fixed;
@@ -499,6 +652,13 @@ flex: 1;
   .bottom-nav-item.active {
     color: #3498db; /* Active color */
     font-weight: bold;
+  }
+
+  .nav-icon {
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* Adjust page-header for mobile if needed */

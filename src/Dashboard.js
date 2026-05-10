@@ -27,6 +27,7 @@ export default function Dashboard({ onNavigate }) {
     
     // Get local date string in YYYY-MM-DD format (en-CA is robust for this)
     const today = new Date().toLocaleDateString('en-CA');
+    const todayEnd = today + 'T23:59:59';
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
     const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
 
@@ -49,12 +50,12 @@ export default function Dashboard({ onNavigate }) {
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'converted'),
         supabase.from('lic_reminders').select('*', { count: 'exact', head: true }).in('status', ['pending', 'failed']).lte('reminder_date', today),
         supabase.from('lic_policies').select('*', { count: 'exact', head: true }).gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow),
-        supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'new').lte('reminder_date', today),
+        supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'new').lte('reminder_date', todayEnd),
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'new').gte('reminder_date', tomorrow + 'T00:00:00').lte('reminder_date', tomorrow + 'T23:59:59'),
         supabase.from('lic_policies').select('premium_amount, status'),
         supabase.from('lic_leads').select('status'),
         supabase.from('lic_policies').select('*, lic_leads(name)').gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow).order('maturity_date', { ascending: true }).limit(10),
-        supabase.from('lic_leads').select('id, name, phone, email, reminder_date').eq('status', 'new').lte('reminder_date', today).order('reminder_date', { ascending: true }).limit(5),
+        supabase.from('lic_leads').select('id, name, phone, email, reminder_date').eq('status', 'new').lte('reminder_date', todayEnd).order('reminder_date', { ascending: true }).limit(5),
         supabase.from('lic_leads').select('id, name, phone, email, reminder_date').eq('status', 'new').gte('reminder_date', tomorrow + 'T00:00:00').lte('reminder_date', tomorrow + 'T23:59:59').order('reminder_date', { ascending: true }).limit(5)
       ]);
 
@@ -88,6 +89,7 @@ export default function Dashboard({ onNavigate }) {
       setFollowUpTomorrowLeads(followUpTomorrowLeadsData || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      alert("Failed to refresh dashboard. Please check your connection.");
     }
     setLoading(false);
   }
@@ -152,6 +154,9 @@ export default function Dashboard({ onNavigate }) {
     { label: 'Follow Up Tomorrow', value: stats.followUpTomorrowCount, target: 'leads', highlight: true },
   ];
 
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const thirtyDaysFromNowStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
+
   return (
     <div className="dashboard-container">
       <div className="page-header">
@@ -159,17 +164,38 @@ export default function Dashboard({ onNavigate }) {
         <button className="btn-small" onClick={fetchDashboardData}>Refresh Data</button>
       </div>
 
-      <div className="stats-grid">
-        {kpiCards.map((card, index) => (
-          <div 
-            key={index} 
-            className="stat-card clickable" 
-            onClick={() => onNavigate && onNavigate(card.target)}
-          >
+      {/* Row 1: Primary Metrics */}
+      <div className="stats-grid" style={{ marginBottom: '20px' }}>
+        {kpiCards.slice(0, 3).map((card, index) => (
+          <div key={index} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
             <h3>{card.label}</h3>
-            <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>
-              {card.value}
-            </p>
+            <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Row 2: Reminders & Follow-ups */}
+      <div className="stats-grid">
+        {kpiCards.slice(3).map((card, index) => (
+          <div key={index + 3} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
+            <h3>
+              {card.label}
+              {card.label === 'Upcoming Renewals' && (
+                <span 
+                  className="info-icon" 
+                  title={`From ${todayStr} to ${thirtyDaysFromNowStr}`}
+                  style={{ 
+                    marginLeft: '8px', 
+                    cursor: 'pointer', 
+                    fontSize: '0.9rem',
+                    color: '#7f8c8d' 
+                  }}
+                >
+                  ⓘ
+                </span>
+              )}
+            </h3>
+            <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
           </div>
         ))}
       </div>

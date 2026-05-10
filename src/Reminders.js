@@ -11,10 +11,6 @@ export default function Reminders() {
     closeReason: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [policyStartDateFilter, setPolicyStartDateFilter] = useState('');
-  const [policyMaturityDateFilter, setPolicyMaturityDateFilter] = useState('');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
 
   useEffect(() => {
     fetchReminders();
@@ -67,9 +63,11 @@ export default function Reminders() {
           return;
         }
 
-        const currentMaturityDate = new Date(reminder.lic_policies.maturity_date);
-        currentMaturityDate.setFullYear(currentMaturityDate.getFullYear() + parseInt(actionState.renewalYears, 10));
-        const newMaturityDate = currentMaturityDate.toISOString().split('T')[0];
+        // Timezone-safe date calculation
+        const [year, month, day] = reminder.lic_policies.maturity_date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        dateObj.setFullYear(dateObj.getFullYear() + parseInt(actionState.renewalYears, 10));
+        const newMaturityDate = dateObj.toLocaleDateString('en-CA');
 
         // Update the policy's maturity date
         const { error: policyUpdateError } = await supabase
@@ -138,56 +136,26 @@ export default function Reminders() {
       (r.lic_policies?.policy_name || '').toLowerCase().includes(term) ||
       (r.lic_policies?.lic_leads?.name || '').toLowerCase().includes(term);
 
-    const matchesReminderStartDate = !startDateFilter || r.reminder_date >= startDateFilter;
-    const matchesReminderEndDate = !endDateFilter || r.reminder_date <= endDateFilter;
-
-    const matchesPolicyStartDate = !policyStartDateFilter || (r.lic_policies?.start_date && r.lic_policies.start_date >= policyStartDateFilter);
-    const matchesPolicyMaturityDate = !policyMaturityDateFilter || (r.lic_policies?.maturity_date && r.lic_policies.maturity_date <= policyMaturityDateFilter);
-
-    return matchesSearch && matchesReminderStartDate && matchesReminderEndDate && matchesPolicyStartDate && matchesPolicyMaturityDate;
+    return matchesSearch;
   });
 
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Reminders</h2>
-      </div>
+      <div className="sticky-header">
+        <div className="page-header">
+          <h2>Reminders</h2>
+        </div>
 
-      <div className="filters-container">
-        <input 
-          type="text" 
-          placeholder="Search by policy or client..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-        <input 
-          type="date" 
-          value={startDateFilter}
-          onChange={(e) => setStartDateFilter(e.target.value)}
-          className="filter-select"
-        />
-        <input 
-          type="date" 
-          value={endDateFilter}
-          onChange={(e) => setEndDateFilter(e.target.value)}
-          className="filter-select"
-        />
-        <input 
-          type="date" 
-          placeholder="Policy Start Date"
-          value={policyStartDateFilter}
-          onChange={(e) => setPolicyStartDateFilter(e.target.value)}
-          className="filter-select"
-        />
-        <input 
-          type="date" 
-          placeholder="Policy Maturity Date"
-          value={policyMaturityDateFilter}
-          onChange={(e) => setPolicyMaturityDateFilter(e.target.value)}
-          className="filter-select"
-        />
+        <div className="filters-container">
+          <input 
+            type="text" 
+            placeholder="Search by policy or client..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
       </div>
 
       {loading ? <p>Loading...</p> : (

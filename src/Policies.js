@@ -14,11 +14,11 @@ export default function Policies() {
     start_date: '',
     maturity_date: '',
     reminder_offset_days: 30,
-    status: 'active'
+    status: 'active',
+    document_path: ''
   });
+  const [file, setFile] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
 
   useEffect(() => {
     fetchPolicies();
@@ -39,21 +39,47 @@ export default function Policies() {
   }
 
   async function fetchLeads() {
-    const { data } = await supabase.from('lic_leads').select('id, name, status');
-    if (data) setLeads(data);
+    const { data, error } = await supabase.from('lic_leads').select('id, name, status');
+    if (!error && data) setLeads(data);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
+
+    let documentPath = currentPolicy.document_path;
+
+    // Handle file upload to Supabase Storage if a new file is selected
+    if (file) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = fileName;
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('docs_common')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        alert('Error uploading document: ' + uploadError.message);
+        setLoading(false);
+        return;
+      }
+      documentPath = data.path;
+    }
+
+    const policyToSave = { ...currentPolicy, document_path: documentPath };
     const { error } = isEditing
-      ? await supabase.from('lic_policies').update(currentPolicy).eq('id', currentPolicy.id)
-      : await supabase.from('lic_policies').insert([currentPolicy]);
+      ? await supabase.from('lic_policies').update(policyToSave).eq('id', currentPolicy.id)
+      : await supabase.from('lic_policies').insert([policyToSave]);
 
     if (!error) {
       setShowModal(false);
+      setFile(null);
       fetchPolicies();
+      setLoading(false);
     } else {
       alert(error.message);
+      setLoading(false);
     }
   }
 
@@ -68,7 +94,8 @@ export default function Policies() {
     if (policy) {
       // Remove nested lead data before setting state for update
       const { lic_leads, ...cleanPolicy } = policy;
-      setCurrentPolicy({ ...cleanPolicy, reminder_offset_days: 30 });
+      setCurrentPolicy({ ...cleanPolicy, reminder_offset_days: 30, document_path: cleanPolicy.document_path || '' });
+      setFile(null);
       setIsEditing(true);
     } else {
       setCurrentPolicy({
@@ -78,8 +105,10 @@ export default function Policies() {
         start_date: new Date().toISOString().split('T')[0],
         maturity_date: '',
         reminder_offset_days: 30,
-        status: 'active'
+        status: 'active',
+        document_path: ''
       });
+      setFile(null);
       setIsEditing(false);
     }
     setShowModal(true);
@@ -93,41 +122,28 @@ export default function Policies() {
       p.premium_amount.toString().includes(term) ||
       p.status.toLowerCase().includes(term);
 
-    const matchesStartDate = !startDateFilter || p.start_date >= startDateFilter;
-    const matchesEndDate = !endDateFilter || p.maturity_date <= endDateFilter;
-
-    return matchesSearch && matchesStartDate && matchesEndDate;
+    return matchesSearch;
   });
 
   const selectedLead = leads.find(l => l.id === currentPolicy.lead_id);
 
   return (
     <div>
-      <div className="page-header">
-        <h2>Policies</h2>
-        <button className="btn-primary" onClick={() => openModal()}>Add New Policy</button>
-      </div>
+      <div className="sticky-header">
+        <div className="page-header">
+          <h2>Policies</h2>
+          <button className="btn-primary" onClick={() => openModal()}>Add New Policy</button>
+        </div>
 
-      <div className="filters-container">
-        <input 
-          type="text" 
-          placeholder="Search by policy, client or premium..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-        <input 
-          type="date" 
-          value={startDateFilter}
-          onChange={(e) => setStartDateFilter(e.target.value)}
-          className="filter-select"
-        />
-        <input 
-          type="date" 
-          value={endDateFilter}
-          onChange={(e) => setEndDateFilter(e.target.value)}
-          className="filter-select"
-        />
+        <div className="filters-container">
+          <input 
+            type="text" 
+            placeholder="Search by policy, client or premium..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
       </div>
 
       {loading ? <p>Loading...</p> : (
@@ -146,7 +162,20 @@ export default function Policies() {
           <tbody>
             {filteredPolicies.map(p => (
               <tr key={p.id} className={p.status === 'closed' ? 'row-closed' : ''}>
-                <td data-label="Policy Number">{p.policy_name}</td>
+                <td data-label="Policy Number">
+                  {p.policy_name}
+                  {p.document_path && (
+                    <a 
+                      href={supabase.storage.from('docs_common').getPublicUrl(p.document_path).data.publicUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{ marginLeft: '8px', textDecoration: 'none' }}
+                      title="View Document"
+                    >
+                      📄
+                    </a>
+                  )}
+                </td>
                 <td data-label="Client">{p.lic_leads?.name || 'N/A'}</td>
                 <td data-label="Premium">₹{p.premium_amount}</td>
                 <td data-label="Start Date">{p.start_date}</td>
@@ -199,6 +228,15 @@ export default function Policies() {
               <div className="form-group">
                 <label>Maturity Date</label>
                 <input type="date" required value={currentPolicy.maturity_date} onChange={e => setCurrentPolicy({...currentPolicy, maturity_date: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Policy Document (Optional)</label>
+                <input 
+                  type="file" 
+                  onChange={e => setFile(e.target.files[0])}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                {currentPolicy.document_path && !file && <p style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>Existing file attached</p>}
               </div>
               <div className="form-group">
                 <span style={{ fontSize: '0.85rem', color: '#7f8c8d' }}>

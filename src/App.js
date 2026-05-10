@@ -12,7 +12,7 @@ function App() {
   return (
     <div className="App">
       <nav className="sidebar">
-        <div className="nav-brand">Agent Portal</div>
+        <div className="nav-brand">Lead Management Portal</div>
         <ul>
           <li 
             role="button"
