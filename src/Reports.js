@@ -10,22 +10,6 @@ export default function Reports() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [loadingPolicies, setLoadingPolicies] = useState(false);
 
-  // Helper to handle Sharing or Downloading
-  const shareOrDownload = async (doc, filename) => {
-    const blob = doc.output('blob');
-    const file = new File([blob], filename, { type: 'application/pdf' });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: filename });
-      } catch (err) {
-        if (err.name !== 'AbortError') doc.save(filename);
-      }
-    } else {
-      doc.save(filename);
-    }
-  };
-
   // Helper to format currency in Indian format
   const formatCurrency = (amount) => {
     const val = Number(amount) || 0;
