@@ -17,9 +17,20 @@ export default function Dashboard({ onNavigate }) {
   const [followUpLeads, setFollowUpLeads] = useState([]);
   const [followUpTomorrowLeads, setFollowUpTomorrowLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobileView, setIsMobileView] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+
+    const handleResize = () => {
+      // Detect mobile view based on common 768px breakpoint
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Run once on mount
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   async function fetchDashboardData() {
@@ -49,12 +60,12 @@ export default function Dashboard({ onNavigate }) {
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }),
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'converted'),
         supabase.from('lic_reminders').select('*', { count: 'exact', head: true }).in('status', ['pending', 'failed']).lte('reminder_date', today),
-        supabase.from('lic_policies').select('*', { count: 'exact', head: true }).gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow),
+        supabase.from('lic_policies').select('*', { count: 'exact', head: true }).eq('status', 'active').gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow),
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'new').lte('reminder_date', todayEnd),
         supabase.from('lic_leads').select('*', { count: 'exact', head: true }).eq('status', 'new').gte('reminder_date', tomorrow + 'T00:00:00').lte('reminder_date', tomorrow + 'T23:59:59'),
         supabase.from('lic_policies').select('premium_amount, status'),
         supabase.from('lic_leads').select('status'),
-        supabase.from('lic_policies').select('*, lic_leads(name)').gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow).order('maturity_date', { ascending: true }).limit(10),
+        supabase.from('lic_policies').select('*, lic_leads(name)').eq('status', 'active').gte('maturity_date', today).lte('maturity_date', thirtyDaysFromNow).order('maturity_date', { ascending: true }).limit(10),
         supabase.from('lic_leads').select('id, name, phone, email, reminder_date').eq('status', 'new').lte('reminder_date', todayEnd).order('reminder_date', { ascending: true }).limit(5),
         supabase.from('lic_leads').select('id, name, phone, email, reminder_date').eq('status', 'new').gte('reminder_date', tomorrow + 'T00:00:00').lte('reminder_date', tomorrow + 'T23:59:59').order('reminder_date', { ascending: true }).limit(5)
       ]);
@@ -164,43 +175,73 @@ export default function Dashboard({ onNavigate }) {
         <button className="btn-small" onClick={fetchDashboardData}>Refresh Data</button>
       </div>
 
-      {/* Row 1: Primary Metrics */}
-      <div className="stats-grid" style={{ marginBottom: '20px' }}>
-        {kpiCards.slice(0, 3).map((card, index) => (
-          <div key={index} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
-            <h3>{card.label}</h3>
-            <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+      {/* Conditional rendering for KPI cards based on isMobileView */}
+      {isMobileView ? (
+        <div className="mobile-kpi-tiles-container"> {/* New container for mobile tiles */}
+          {kpiCards.map((card, index) => (
+            <div key={index} className="stat-card clickable mobile-kpi-tile" onClick={() => onNavigate && onNavigate(card.target)}>
+              <h3>
+                {card.label}
+                {card.label === 'Upcoming Renewals' && (
+                  <span
+                    className="info-icon"
+                    title={`From ${todayStr} to ${thirtyDaysFromNowStr}`}
+                    style={{
+                      marginLeft: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      color: '#7f8c8d'
+                    }}
+                  >
+                    ⓘ
+                  </span>
+                )}
+              </h3>
+              <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Row 1: Primary Metrics (Desktop) */}
+          <div className="stats-grid" style={{ marginBottom: '20px' }}>
+            {kpiCards.slice(0, 3).map((card, index) => (
+              <div key={index} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
+                <h3>{card.label}</h3>
+                <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Row 2: Reminders & Follow-ups */}
-      <div className="stats-grid">
-        {kpiCards.slice(3).map((card, index) => (
-          <div key={index + 3} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
-            <h3>
-              {card.label}
-              {card.label === 'Upcoming Renewals' && (
-                <span 
-                  className="info-icon" 
-                  title={`From ${todayStr} to ${thirtyDaysFromNowStr}`}
-                  style={{ 
-                    marginLeft: '8px', 
-                    cursor: 'pointer', 
-                    fontSize: '0.9rem',
-                    color: '#7f8c8d' 
-                  }}
-                >
-                  ⓘ
-                </span>
-              )}
-            </h3>
-            <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+          {/* Row 2: Reminders & Follow-ups (Desktop) */}
+          <div className="stats-grid">
+            {kpiCards.slice(3).map((card, index) => (
+              <div key={index + 3} className="stat-card clickable" onClick={() => onNavigate && onNavigate(card.target)}>
+                <h3>
+                  {card.label}
+                  {card.label === 'Upcoming Renewals' && (
+                    <span
+                      className="info-icon"
+                      title={`From ${todayStr} to ${thirtyDaysFromNowStr}`}
+                      style={{
+                        marginLeft: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        color: '#7f8c8d'
+                      }}
+                    >
+                      ⓘ
+                    </span>
+                  )}
+                </h3>
+                <p className={`stat-value ${card.highlight ? 'highlight' : ''}`}>{card.value}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
-      <div className="dashboard-sections">
+      <div className={`dashboard-sections ${isMobileView ? 'mobile-dashboard-sections' : ''}`}>
         <div className="dashboard-card status-breakdown">
           <h3>Lead Status Breakdown</h3>
           <div className="pie-section">

@@ -4,6 +4,7 @@ import Dashboard from './Dashboard';
 import Leads from './Leads';
 import Policies from './Policies';
 import Reminders from './Reminders';
+import Reports from './Reports';
 import BottomNav from './BottomNav'; // Import the new component
 
 function App() {
@@ -50,6 +51,15 @@ function App() {
           >
             Reminders
           </li>
+          <li 
+            role="button"
+            tabIndex={0}
+            onClick={() => setView('reports')} 
+            onKeyDown={(e) => e.key === 'Enter' && setView('reports')}
+            className={view === 'reports' ? 'active' : ''}
+          >
+            Reports
+          </li>
         </ul>
       </nav>
 
@@ -58,6 +68,7 @@ function App() {
         {view === 'leads' && <Leads key={view} />}
         {view === 'policies' && <Policies key={view} />}
         {view === 'reminders' && <Reminders key={view} />}
+        {view === 'reports' && <Reports key={view} />}
       </main>
       <BottomNav currentView={view} setView={setView} /> {/* Render BottomNav */}
     </div>

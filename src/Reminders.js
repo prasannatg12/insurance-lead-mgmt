@@ -7,7 +7,8 @@ export default function Reminders() {
   const [actionState, setActionState] = useState({
     reminderId: null,
     action: '', // 'Renew' or 'Close'
-    renewalYears: 1,
+    startDate: '',
+    endDate: '',
     closeReason: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,9 +27,11 @@ export default function Reminders() {
           policy_name,
           start_date,
           maturity_date,
+          status,
           lic_leads (name)
         )
       `)
+      .neq('status', 'closed')
       .order('reminder_date', { ascending: true });
 
     if (!error) setReminders(data);
@@ -39,7 +42,8 @@ export default function Reminders() {
     setActionState({
       reminderId: reminderId,
       action: actionType,
-      renewalYears: 1, // Reset to default
+      startDate: new Date().toLocaleDateString('en-CA'),
+      endDate: '',
       closeReason: '' // Reset
     });
   };
@@ -58,31 +62,61 @@ export default function Reminders() {
 
     try {
       if (actionState.action === 'Renew') {
-        if (actionState.renewalYears <= 0) {
-          alert('Number of years for renewal must be positive.');
+        if (!actionState.startDate || !actionState.endDate) {
+          alert('Please provide both start and end dates.');
           return;
         }
 
-        // Timezone-safe date calculation
-        const [year, month, day] = reminder.lic_policies.maturity_date.split('-').map(Number);
-        const dateObj = new Date(year, month - 1, day);
-        dateObj.setFullYear(dateObj.getFullYear() + parseInt(actionState.renewalYears, 10));
-        const newMaturityDate = dateObj.toLocaleDateString('en-CA');
+        const today = actionState.startDate;
+        const newMaturityDate = actionState.endDate;
 
-        // Update the policy's maturity date
+        // Fetch full old policy details to clone
+        const { data: oldPolicy, error: fetchErr } = await supabase
+          .from('lic_policies')
+          .select('*')
+          .eq('id', reminder.lic_policies.id)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+
+        // 1. Insert new active policy row
+        const { error: insertErr } = await supabase
+          .from('lic_policies')
+          .insert([{
+            policy_name: oldPolicy.policy_name,
+            lead_id: oldPolicy.lead_id,
+            premium_amount: oldPolicy.premium_amount,
+            start_date: today,
+            maturity_date: newMaturityDate,
+            status: 'active',
+            document_path: oldPolicy.document_path,
+            reminder_offset_days: oldPolicy.reminder_offset_days
+          }]);
+
+        if (insertErr) throw insertErr;
+
+        // 2. Update the old policy's status
         const { error: policyUpdateError } = await supabase
           .from('lic_policies')
-          .update({ maturity_date: newMaturityDate })
-          .eq('id', reminder.lic_policies.id);
+          .update({ status: 'renewed and closed' })
+          .eq('id', oldPolicy.id);
 
         if (policyUpdateError) throw policyUpdateError;
+
+        // 3. Close the current reminder
+        const { error: closeRemErr } = await supabase
+          .from('lic_reminders')
+          .update({ status: 'closed' })
+          .eq('id', actionState.reminderId);
+
+        if (closeRemErr) throw closeRemErr;
 
         // Log the action
         await supabase.from('lic_notifications').insert({
           tenant_id: reminder.tenant_id,
-          lead_id: reminder.lic_policies.lic_leads?.id,
+          lead_id: oldPolicy.lead_id,
           type: 'renewal',
-          message: `Policy ${reminder.lic_policies.policy_name} renewed for ${actionState.renewalYears} year(s). New maturity date: ${newMaturityDate}`,
+          message: `Policy ${oldPolicy.policy_name} renewed. New term: ${today} to ${newMaturityDate}. Old policy marked as renewed and closed.`,
           status: 'success'
         });
 
@@ -118,7 +152,7 @@ export default function Reminders() {
       }
 
       // Reset action state and re-fetch reminders
-      setActionState({ reminderId: null, action: '', renewalYears: 1, closeReason: '' });
+      setActionState({ reminderId: null, action: '', startDate: '', endDate: '', closeReason: '' });
       fetchReminders();
     } catch (error) {
       alert(`Error performing action: ${error.message}`);
@@ -136,7 +170,8 @@ export default function Reminders() {
       (r.lic_policies?.policy_name || '').toLowerCase().includes(term) ||
       (r.lic_policies?.lic_leads?.name || '').toLowerCase().includes(term);
 
-    return matchesSearch;
+    const isPolicyClosed = r.lic_policies?.status === 'closed' || r.lic_policies?.status === 'renewed and closed';
+    return matchesSearch && !isPolicyClosed;
   });
 
 
@@ -198,14 +233,25 @@ export default function Reminders() {
                       </select>
 
                       {actionState.reminderId === r.id && actionState.action === 'Renew' && (
-                        <div className="action-input-group">
-                          <input
-                            type="number"
-                            placeholder="Years"
-                            min="1"
-                            value={actionState.renewalYears}
-                            onChange={(e) => setActionState(prev => ({ ...prev, renewalYears: e.target.value }))}
-                          />
+                        <div className="action-input-group" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '5px' }}>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Start Date</label>
+                              <input
+                                type="date"
+                                value={actionState.startDate}
+                                onChange={(e) => setActionState(prev => ({ ...prev, startDate: e.target.value }))}
+                              />
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>End Date</label>
+                              <input
+                                type="date"
+                                value={actionState.endDate}
+                                onChange={(e) => setActionState(prev => ({ ...prev, endDate: e.target.value }))}
+                              />
+                            </div>
+                          </div>
                           <button className="btn-small btn-primary" onClick={handleSubmitAction}>Submit</button>
                         </div>
                       )}

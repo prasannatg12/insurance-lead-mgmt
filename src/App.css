@@ -667,6 +667,41 @@ flex: 1;
     align-items: flex-start;
     gap: 10px;
   }
+
+  /* Dashboard Mobile Layouts */
+
+  /* Mobile KPI Tiles (two columns) */
+  .mobile-kpi-tiles-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Two columns */
+    gap: 15px; /* Spacing between tiles */
+    margin-top: 20px; /* Space from header */
+    margin-bottom: 20px; /* Space before larger sections */
+  }
+
+  /* Individual KPI tiles - ensure they flex correctly within the grid */
+  .mobile-kpi-tile {
+    min-width: unset; /* Override desktop min-width */
+    padding: 15px; /* Slightly less padding for smaller screens */
+  }
+
+  /* Dashboard Sections (large data - one column) */
+  .mobile-dashboard-sections {
+    grid-template-columns: 1fr; /* Stack into a single column */
+    gap: 20px; /* Keep the same gap between sections */
+    margin-top: 20px; /* Adjust margin if needed for mobile */
+  }
+
+  /* Make pie charts and their legends stack vertically on mobile */
+  .pie-section {
+    flex-direction: column; /* Stack legend and chart vertically */
+    align-items: center; /* Center them */
+  }
+
+  .pie-legend {
+    margin-top: 20px; /* Add space between chart and legend when stacked */
+    width: 100%; /* Take full width */
+  }
 }
 
 /* Pie Chart Visualization */
@@ -717,3 +752,16 @@ flex: 1;
 .legend-color.pie-lost { background-color: #e74c3c; }
 .legend-color.pie-active { background-color: #2ecc71; }
 .legend-color.pie-closed { background-color: #f08080; }
+.status-renewed-and-closed { background: #f3f4f6; color: #374151; }
+
+/* Reports Range Inputs Responsive */
+@media (max-width: 768px) {
+  .dashboard-sections {
+    grid-template-columns: 1fr;
+  }
+  
+  .range-inputs {
+    flex-direction: column;
+    gap: 0 !important;
+  }
+}

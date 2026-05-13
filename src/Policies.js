@@ -19,6 +19,7 @@ export default function Policies() {
   });
   const [file, setFile] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAllPolicies, setShowAllPolicies] = useState(false);
 
   useEffect(() => {
     fetchPolicies();
@@ -116,13 +117,16 @@ export default function Policies() {
 
   const filteredPolicies = policies.filter(p => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       p.policy_name.toLowerCase().includes(term) ||
       (p.lic_leads?.name && p.lic_leads.name.toLowerCase().includes(term)) ||
       p.premium_amount.toString().includes(term) ||
       p.status.toLowerCase().includes(term);
 
-    return matchesSearch;
+    // New filter logic: if showAllPolicies is false, hide 'closed' and 'renewed and closed'
+    const matchesStatusFilter = showAllPolicies || (p.status !== 'closed' && p.status !== 'renewed and closed');
+
+    return matchesSearch && matchesStatusFilter;
   });
 
   const selectedLead = leads.find(l => l.id === currentPolicy.lead_id);
@@ -132,7 +136,23 @@ export default function Policies() {
       <div className="sticky-header">
         <div className="page-header">
           <h2>Policies</h2>
-          <button className="btn-primary" onClick={() => openModal()}>Add New Policy</button>
+          <div className="view-controls">
+            <div className="view-toggle">
+              <button
+                className={`btn-toggle ${showAllPolicies ? 'active' : ''}`}
+                onClick={() => setShowAllPolicies(true)}
+              >
+                Show All
+              </button>
+              <button
+                className={`btn-toggle ${!showAllPolicies ? 'active' : ''}`}
+                onClick={() => setShowAllPolicies(false)}
+              >
+                Show Active Only
+              </button>
+            </div>
+            <button className="btn-primary" onClick={() => openModal()}>Add New Policy</button>
+          </div>
         </div>
 
         <div className="filters-container">
@@ -160,8 +180,11 @@ export default function Policies() {
             </tr>
           </thead>
           <tbody>
-            {filteredPolicies.map(p => (
-              <tr key={p.id} className={p.status === 'closed' ? 'row-closed' : ''}>
+            {filteredPolicies.map(p => {
+              const isInactive = p.status === 'closed' || p.status === 'renewed and closed';
+              const statusClass = p.status.toLowerCase().replace(/\s+/g, '-');
+              return (
+                <tr key={p.id} className={isInactive ? 'row-closed' : ''}>
                 <td data-label="Policy Number">
                   {p.policy_name}
                   {p.document_path && (
@@ -180,9 +203,9 @@ export default function Policies() {
                 <td data-label="Premium">₹{p.premium_amount}</td>
                 <td data-label="Start Date">{p.start_date}</td>
                 <td data-label="Maturity Date">{p.maturity_date}</td>
-                <td data-label="Status"><span className={`status-${p.status}`}>{p.status}</span></td>
-                <td data-label="Actions" className={p.status === 'closed' ? 'mobile-hide' : ''}>
-                  {p.status !== 'closed' && (
+                <td data-label="Status"><span className={`status-${statusClass}`}>{p.status}</span></td>
+                <td data-label="Actions" className={isInactive ? 'mobile-hide' : ''}>
+                  {!isInactive && (
                     <>
                       <button className="btn-small" onClick={() => openModal(p)}>Edit</button>
                       <button className="btn-small btn-danger" onClick={() => handleDelete(p.id)}>Delete</button>
@@ -190,7 +213,8 @@ export default function Policies() {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
